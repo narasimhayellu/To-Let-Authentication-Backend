@@ -6,8 +6,29 @@ dotenv.config();
 const mongoDBConnection = require("./dbConfig/config");
 
 const url = process.env.DB_CONNECTION_URL;
-mongoDBConnection(url);
-console.log("DB_CONNECTION_URL:", url); 
+
+// Validate required environment variables
+if (!url) {
+  console.error("Error: DB_CONNECTION_URL is not defined in environment variables");
+  process.exit(1);
+}
+
+if (!process.env.JWT_SECRET) {
+  console.error("Error: JWT_SECRET is not defined in environment variables");
+  process.exit(1);
+}
+
+if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  console.error("Error: Email configuration (EMAIL_USER, EMAIL_PASS) is not defined in environment variables");
+  process.exit(1);
+}
+
+if (!process.env.FRONTEND_URL) {
+  console.error("Error: FRONTEND_URL is not defined in environment variables");
+  process.exit(1);
+}
+
+mongoDBConnection(url); 
 
 const app = express();
 app.use(express.json());

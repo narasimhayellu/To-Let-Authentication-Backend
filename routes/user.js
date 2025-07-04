@@ -6,7 +6,7 @@ const requireSignIn = require("../middleware/authMiddleware");
 router.post("/register", userRegistration);
 router.post("/login", userLogin);
 router.post("/forgot-password", userPass);
-router.patch("/forgot-password/:token", passReset)
+router.patch("/forgot-password/:token", passReset);
 router.get("/protected", requireSignIn, (req, res) => {
     res.status(200).send({ message: "Protected route accessed", user: req.user });
   });

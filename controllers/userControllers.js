@@ -6,12 +6,35 @@ const nodemailer = require("nodemailer");
 
 const userRegistration = async (req, res) => {
   try {
+    const { firstName, lastName, email, password, phone, role, answer } = req.body;
+    
+    // Validate required fields
+    if (!firstName || !lastName || !email || !password || !phone || !role || !answer) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+    
     const user = await userSchema.create(req.body);
-    res.status(201).json(user);
+    
+    // Don't send password in response
+    const userResponse = {
+      id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      phone: user.phone,
+      role: user.role
+    };
+    
+    res.status(201).json(userResponse);
   } catch (error) {
     if (error.code === 11000) {
       return res.status(400).json({ message: "Email already exists" });
     }
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ message: messages.join(', ') });
+    }
+    console.error('Registration error:', error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -66,6 +89,7 @@ const userPass = async (req, res) => {
     user.resetTokenExpiry = resetTokenExpiry;
     await user.save();
 
+    try {
       const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
@@ -74,31 +98,26 @@ const userPass = async (req, res) => {
         },
       });
 
-      
-        transporter.verify(function (error, success) {
-        if (error) {
-          console.error("Email server connection failed:", error);
-        } else {
-          console.log("Email server is ready to take messages");
-        }
-      });
-
       const resetLink = `${process.env.FRONTEND_URL}/reset-password/${token}`;
 
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Password Reset Link",
-      html: `<p>You requested a password reset.</p>
-             <p>Click <a href="${resetLink}">here</a> to reset your password.</p>
-             <p>This link will expire in 1 hour.</p>`,
-    };
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: "Password Reset Link",
+        html: `<p>You requested a password reset.</p>
+               <p>Click <a href="${resetLink}">here</a> to reset your password.</p>
+               <p>This link will expire in 1 hour.</p>`,
+      };
 
-    await transporter.sendMail(mailOptions);
+      await transporter.sendMail(mailOptions);
+    } catch (emailError) {
+      console.error("Failed to send reset email:", emailError.message);
+      // Still save the token even if email fails
+      return res.status(500).json({ message: "Reset token generated but email sending failed. Please contact support." });
+    }
 
-    console.log(`User found: ${user.email}`);
-    console.log(`Reset token: ${token}`);
-    console.log(`Sending email to: ${email}`);
+    // Log only non-sensitive information
+    console.log(`Password reset email sent to user`);
 
     res.status(200).json({ message: "Reset link sent to your email" });
   } catch (error) {
